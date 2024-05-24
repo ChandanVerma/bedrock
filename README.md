@@ -3,9 +3,9 @@ There should be an .env file in the same location as you app.py
 
 The .env file will have following keys:
 
-aws_access_key_id = 'YOUR AWS_ACCESS_KEY_ID'
-aws_secret_access_key = 'YOUR AWS_SECRET_ACCESS_KEY'
-region_name='YOUR REGION_NAME'                                       
+aws_access_key_id = 'YOUR AWS_ACCESS_KEY_ID' \
+aws_secret_access_key = 'YOUR AWS_SECRET_ACCESS_KEY' \
+region_name='YOUR REGION_NAME' \                                      
 
 
 # Local Testing
