@@ -1,6 +1,7 @@
 from quart import Quart, request, jsonify
 import boto3
 from langchain_community.llms import Bedrock
+from langchain_aws import BedrockLLM
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from botocore.config import Config
@@ -27,14 +28,14 @@ model_kwargs = {
   "modelId": "mistral.mixtral-8x7b-instruct-v0:1",
   "contentType": "application/json",
   "accept": "application/json",
-  "body": "{\"prompt\":\"<s>[INST]I am going to Paris, what should I see?[/INST]\",\"max_tokens\":800,\"top_k\":50,\"top_p\":0.7,\"temperature\":0.7}"
+#   "body": "{\"prompt\":\"<s>[INST]I am going to Paris, what should I see?[/INST]\",\"max_tokens\":800,\"top_k\":50,\"top_p\":0.7,\"temperature\":0.7}"
 }
 
 
-llm = Bedrock(
+llm = BedrockLLM(
     model_id="mistral.mixtral-8x7b-instruct-v0:1",
     client=boto3_bedrock_runtime,
-    # model_kwargs=model_kwargs,
+    model_kwargs=model_kwargs,
 )
 
 # prompt = "What is the largest city in New Hampshire?" #the prompt to send to the model
@@ -48,36 +49,45 @@ llm = Bedrock(
 
 
 # Define the prompt template
-template1 = '''I want you to act as a acting dietician for people.
-In an easy way, explain the benefits of {review}.'''
+template1 = '''I want you to act as a ecommerce customer support feeeback replier.
+In a polite tone, respond to the product review given below:
+REVIEW: {review}.
+Make sure to format your response in a json format with the following keys.
+    response: This will be the reponse text that you will provide based on the user review for the product'''
 
 prompt1 = PromptTemplate(
     input_variables=['review'],
     template=template1
 )
 
-# # Define the LLM chain
-# llm_chain = LLMChain(
-#     llm=llm,
-#     prompt=prompt1
-# )
+# input_prompt = prompt1.format_prompt(review="I am very happy with the product")
+
+# # # Define the LLM chain
+# # llm_chain = LLMChain(
+# #     llm=llm,
+# #     prompt=input_prompt
+# # )
 
 
-llm.invoke()
-review = "I am very happy with the product"
-response = llm_chain.arun(review)
+# resp = llm.invoke(input=input_prompt)
+# review = "I am very happy with the product"
+# response = llm_chain.arun(input_prompt)
 
-response
+# response
 
 @app.route('/explain', methods=['POST'])
 async def explain():
     data = await request.json
     review = data.get('review')
+    print(review)
+    input_prompt = prompt1.format_prompt(review=review)
+    print("INPUT PROMPT IS:", input_prompt.text)
     if not review:
         return jsonify({'error': 'No review provided'}), 400
 
     try:
-        response = await llm_chain.arun(review)
+        response = llm.invoke(input=input_prompt.text)
+        print(response)
         return jsonify({'response': response})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
