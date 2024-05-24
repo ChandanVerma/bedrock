@@ -1,17 +1,20 @@
+import warnings
+warnings.filterwarnings(action="ignore")
 from quart import Quart, request, jsonify
 import boto3
+import os
 from langchain_community.llms import Bedrock
-from langchain_aws import BedrockLLM
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from botocore.config import Config
-import json
+from dotenv import load_dotenv
+load_dotenv(".env")
 
 app = Quart(__name__)
 
 # Configuring Boto3
 retry_config = Config(
-    region_name='ap-south-1',
+    region_name=os.environ.get("region_name"),
     retries={
         'max_attempts': 10,
         'mode': 'standard'
@@ -20,74 +23,47 @@ retry_config = Config(
 
 session = boto3.Session()
 boto3_bedrock_runtime = session.client(service_name='bedrock-runtime', 
-                                       aws_access_key_id = 'AKIAXRYOD7QBQVYTETXC',
-                                       aws_secret_access_key = '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',
+                                       aws_access_key_id = os.environ.get("aws_access_key_id"),
+                                       aws_secret_access_key = os.environ.get("aws_secret_access_key"),
                                        config=retry_config) #creates a Bedrock client
 
-model_kwargs = {
-  "modelId": "mistral.mixtral-8x7b-instruct-v0:1",
-  "contentType": "application/json",
-  "accept": "application/json",
-#   "body": "{\"prompt\":\"<s>[INST]I am going to Paris, what should I see?[/INST]\",\"max_tokens\":800,\"top_k\":50,\"top_p\":0.7,\"temperature\":0.7}"
-}
+def get_text_response(input_content): #text-to-text client function
 
-
-llm = BedrockLLM(
-    model_id="mistral.mixtral-8x7b-instruct-v0:1",
+    llm = Bedrock(
+    model_id="mistral.mistral-7b-instruct-v0:2",
     client=boto3_bedrock_runtime,
-    model_kwargs=model_kwargs,
-)
+    # model_kwargs=model_kwargs,
+    )
 
-# prompt = "What is the largest city in New Hampshire?" #the prompt to send to the model
+    # Define the prompt template
+    template1 = '''[INST] I want you to act as a customer support feeeback replier.
+    In a polite tone, respond to the product review given below:
+    REVIEW: {review}.
+    DONOT PROVIDE ANY KIND OF PLACEHOLDERS like [Your Name] or anything like this IN YOUR RESPONSE
+    [/INST]'''
 
-# response_text = llm.invoke(prompt) #return a response to the prompt
+    prompt = PromptTemplate(
+        input_variables=['review'],
+        template=template1
+    )
 
-# print(response_text)
+    llm = LLMChain(llm=llm, prompt=prompt)
 
+    return llm.invoke({"review": input_content})["text"].strip()
 
-# Instantiate the LLM with Bedrock
-
-
-# Define the prompt template
-template1 = '''I want you to act as a ecommerce customer support feeeback replier.
-In a polite tone, respond to the product review given below:
-REVIEW: {review}.
-Make sure to format your response in a json format with the following keys.
-    response: This will be the reponse text that you will provide based on the user review for the product'''
-
-prompt1 = PromptTemplate(
-    input_variables=['review'],
-    template=template1
-)
-
-# input_prompt = prompt1.format_prompt(review="I am very happy with the product")
-
-# # # Define the LLM chain
-# # llm_chain = LLMChain(
-# #     llm=llm,
-# #     prompt=input_prompt
-# # )
-
-
-# resp = llm.invoke(input=input_prompt)
-# review = "I am very happy with the product"
-# response = llm_chain.arun(input_prompt)
-
-# response
+# resp = get_text_response("i am very happy with the product")
 
 @app.route('/explain', methods=['POST'])
 async def explain():
     data = await request.json
     review = data.get('review')
-    print(review)
-    input_prompt = prompt1.format_prompt(review=review)
-    print("INPUT PROMPT IS:", input_prompt.text)
+    
     if not review:
         return jsonify({'error': 'No review provided'}), 400
 
     try:
-        response = llm.invoke(input=input_prompt.text)
-        print(response)
+        response = get_text_response(review)
+        # print(response)
         return jsonify({'response': response})
     except Exception as e:
         return jsonify({'error': str(e)}), 500

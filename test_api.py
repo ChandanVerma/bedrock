@@ -7,7 +7,6 @@ def test_api():
 
     try:
         response = requests.post(url, json=payload, headers=headers)
-        print(response)
         response.raise_for_status()
         print("Response Status Code:", response.status_code)
         print("Response JSON:", response.json())
