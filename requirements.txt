@@ -3,4 +3,3 @@ boto3
 langchain
 langchain-community
 botocore
-python-dotenv
