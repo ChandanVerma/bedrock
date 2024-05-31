@@ -13,7 +13,9 @@ region_name='YOUR REGION_NAME'
 # Local Testing
 pip install -r requirements.txt \
 \
-python **app.py** \
+python **app_stream.py** \
+\
+streamlit run **streaming_bot.py** \
 \
 python **test_api.py**
 
