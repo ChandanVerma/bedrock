@@ -1,23 +1,23 @@
 from flask import Flask, request, jsonify, session, Response
 import boto3
-import csv
-from langchain.chains import ConversationChain
 import secrets
-import csv
 import json
-from pydantic import BaseModel, Field
 import os
 from botocore.config import Config
 from langchain_aws import ChatBedrock, Bedrock
-from langchain_core.messages import HumanMessage
+# from langchain_core.messages import HumanMessage
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_core.runnables import RunnablePassthrough
+from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 # from langchain.output_parsers import PydanticOutputParser
 from langchain_core.output_parsers import StrOutputParser
+load_dotenv()
 
+## Langmith tracking
+os.environ["LANGCHAIN_TRACING_V2"]="true"
+os.environ["LANGCHAIN_API_KEY"]=os.getenv("LANGCHAIN_API_KEY")
 
 app_secret_key = secrets.token_hex(16)
 print(app_secret_key)
@@ -28,7 +28,7 @@ app.secret_key = app_secret_key
 
 # Configuring Boto3
 retry_config = Config(
-    region_name='ap-south-1',
+    region_name=os.environ.get("region_name"),
     retries={
         'max_attempts': 10,
         'mode': 'standard'
@@ -121,7 +121,7 @@ import pandas as pd
 # Function to search for the username in the user_info.csv or database
 def get_username(user_id):
     # Read the Excel file
-    df = pd.read_excel('/home/chandanv/Projects/bedrock/user_data.xlsx')
+    df = pd.read_excel('/home/chandan/Projects/Freelance_USA/bedrock/user_data.xlsx')
     
     # Find the row that matches the user_id
     user_row = df[df['Survey ID'] == user_id]
@@ -256,18 +256,4 @@ if __name__ == '__main__':
 
 
 
-import requests
 
-response = requests.post(
-    'http://localhost:5000/write_with_ai',
-    json={
-        'survey_id': 123,
-        'comment': 'This is a test comment.'
-    },
-    stream=True
-)
-import time
-for line in response.iter_lines():
-    if line:
-        print(line.decode('utf-8'))
-        time.sleep(0.5)
