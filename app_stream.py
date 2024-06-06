@@ -14,10 +14,14 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 # from langchain.output_parsers import PydanticOutputParser
 from langchain_core.output_parsers import StrOutputParser
 load_dotenv()
+# os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+import openlit
+
+openlit.init(otlp_endpoint= os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
 
 ## Langmith tracking
-os.environ["LANGCHAIN_TRACING_V2"]="true"
-os.environ["LANGCHAIN_API_KEY"]=os.getenv("LANGCHAIN_API_KEY")
+# os.environ["LANGCHAIN_TRACING_V2"]="true"
+# os.environ["LANGCHAIN_API_KEY"]=os.getenv("LANGCHAIN_API_KEY")
 
 app_secret_key = secrets.token_hex(16)
 print(app_secret_key)
@@ -51,10 +55,10 @@ boto3_bedrock_runtime = session.client(service_name='bedrock-runtime',
                                        aws_secret_access_key = os.environ.get("aws_secret_access_key"),
                                        config=retry_config) #creates a Bedrock client
 
-s3_client = session.client(service_name = 's3', 
-                           aws_access_key_id = os.environ.get("aws_access_key_id"),
-                           aws_secret_access_key = os.environ.get("aws_secret_access_key"),
-                           config=retry_config)
+# s3_client = session.client(service_name = 's3', 
+#                            aws_access_key_id = os.environ.get("aws_access_key_id"),
+#                            aws_secret_access_key = os.environ.get("aws_secret_access_key"),
+#                            config=retry_config)
 
 
 
@@ -121,7 +125,7 @@ import pandas as pd
 # Function to search for the username in the user_info.csv or database
 def get_username(user_id):
     # Read the Excel file
-    df = pd.read_excel('/home/chandan/Projects/Freelance_USA/bedrock/user_data.xlsx')
+    df = pd.read_excel(os.getenv("data_path"))
     
     # Find the row that matches the user_id
     user_row = df[df['Survey ID'] == user_id]
@@ -192,12 +196,12 @@ def modify_response(revision, secret_key = None):
 
 
 # Function to store a file in an S3 bucket
-def store_file_in_s3(file_content, bucket_name, file_key):
-    s3_client.put_object(
-        Body=file_content,
-        Bucket=bucket_name,
-        Key=file_key
-    )
+# def store_file_in_s3(file_content, bucket_name, file_key):
+#     s3_client.put_object(
+#         Body=file_content,
+#         Bucket=bucket_name,
+#         Key=file_key
+#     )
 
 @app.route('/write_with_ai', methods=['POST'])
 def write_with_ai():
