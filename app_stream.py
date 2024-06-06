@@ -14,11 +14,6 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 # from langchain.output_parsers import PydanticOutputParser
 from langchain_core.output_parsers import StrOutputParser
 load_dotenv()
-# os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-import openlit
-
-openlit.init(otlp_endpoint= os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
-
 ## Langmith tracking
 # os.environ["LANGCHAIN_TRACING_V2"]="true"
 # os.environ["LANGCHAIN_API_KEY"]=os.getenv("LANGCHAIN_API_KEY")
@@ -80,7 +75,9 @@ prompt = ChatPromptTemplate.from_messages(
         (
             "system",
             """I want you to act as a ecommerce customer support feeeback replier.
-               In a polite tone, respond to the product review given below: {review}. Respond to the best of your ability""",
+               In a polite tone, respond to the product review given below: 
+               review: {review} 
+               rating: {rating}. Respond to the best of your ability""",
         ),
         MessagesPlaceholder(variable_name="history"),
         ("human", "{input}"),
@@ -134,6 +131,20 @@ def get_username(user_id):
         return user_row.iloc[0]['Contact']
     return None
 
+def get_rating_details(user_id):
+    # Read the Excel file
+    df = pd.read_excel(os.getenv("data_path"))
+    
+    # Find the row that matches the user_id
+    user_row = df[df['Survey ID'] == user_id]
+    
+    if not user_row.empty:
+        review_text = user_row.iloc[0]['Review text']
+        review_rating = user_row.iloc[0]['Review rating']
+        return review_text, review_rating
+    return None
+
+
 # name = get_username(7885020)
 
 # # Function to generate a response using Amazon Bedrock
@@ -149,11 +160,12 @@ def get_username(user_id):
 #     # Generate a response using Amazon Bedrock
 #     return response, comment, secret_key
 
-def generate_response(username, comment, secret_key=None):
+def generate_response(username, comment, rating, secret_key=None):
     config = {"configurable": {"session_id": secret_key}}
     response = ""
     for chunk in write_with_ai_history.stream(
         {"review": f"""{comment}""",
+         "rating": f"""{rating}""",
          "input": f"""The username is {username} who provided the feedback. Respond to his feedback""",
          "history": ""},
         config=config,
@@ -170,6 +182,7 @@ def modify_response(revision, secret_key = None):
         {
         "history": get_session_history(secret_key),
         "review": """""",
+        "rating": """""", 
         "input": f"{revision}"
     },
         config=config,
@@ -212,12 +225,14 @@ def write_with_ai():
 
     # Search for the username
     username = get_username(user_id)
+    review, review_rating = get_rating_details(user_id=user_id)
 
     # Initialize the conversation chain for the user if it doesn't exist
     # Generate a response using Amazon Bedrock
     # response = generate_response(username, comment, session['conversation_chain'])
     feedback, original, secret_key = generate_response(username=username, 
-                                 comment=comment, 
+                                 comment=comment + str(review), 
+                                 rating=review_rating,
                                  secret_key=secret_key)
 
     # Store the response in an S3 bucket
