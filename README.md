@@ -1,5 +1,5 @@
 # How to run
-There should be an .env file in the same location as you prod_flask.py
+There should be an .env file in the same location as your prod_flask.py
 
 The .env file will have following keys:
 
