@@ -18,7 +18,6 @@ BEDROCK_MODEL = "mistral.mistral-7b-instruct-v0:2"
 pip install -r requirements.txt \
 \
 python **prod_flask.py** \
-\
 
 
 ## Docker Compose
