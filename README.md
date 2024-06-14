@@ -22,4 +22,4 @@ python **prod_flask.py**
 
 ## Docker Compose
 
-**sudo docker-compose up --build **
+**sudo docker-compose up --build**
