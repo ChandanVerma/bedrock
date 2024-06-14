@@ -7,21 +7,20 @@ aws_access_key_id = 'YOUR AWS_ACCESS_KEY_ID' \
 \
 aws_secret_access_key = 'YOUR AWS_SECRET_ACCESS_KEY' \
 \
-region_name='YOUR REGION_NAME'
+region_name='YOUR REGION_NAME' \
+\
+data_path = './user_data.xlsx' \
+\
+BEDROCK_MODEL = "mistral.mistral-7b-instruct-v0:2"
 
 
 # Local Testing
 pip install -r requirements.txt \
 \
-python **app_stream.py** \
+python **prod_flask.py** \
 \
-streamlit run **streaming_bot.py** \
-\
-python **test_api.py**
 
-## Docker 
 
-**sudo docker build -t quart-mistral-api .** \
-\
-**sudo docker run -p 5000:5000 quart-mistral-api**
+## Docker Compose
 
+**sudo docker-compose up --build **
