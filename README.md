@@ -21,3 +21,7 @@ python **prod_flask.py**
 ## Docker Compose
 
 **docker-compose up --build**
+
+## API HOSTED ON :
+
+http://127.0.0.1:5001/write_with_ai
