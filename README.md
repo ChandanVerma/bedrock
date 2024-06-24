@@ -25,3 +25,11 @@ python **prod_flask.py**
 ## API HOSTED ON :
 
 http://127.0.0.1:5001/write_with_ai
+
+## FOR LAMBDA FUNCTIONS
+1. Create a Lambda function in AWS
+2. Copy the Lambda function code from Lmabda_function.py and paste into the code section of your AWS lambda function
+3. Add the environment variables as mentioned above in the configuration -> environment variables tab of your AWS Lambda function page
+4. Increase the timeout to 1 minute in AWS lambda in the configuration -> General Configuration tab
+5. Scroll down in the AWS lambda code window and move to the last section to add layers. Click on add layers -> specify ARN and paste arn:aws:lambda:us-east-1:770693421928:layer:Klayers-p311-boto3:11
+6. Add another layer and this time click on create new layer in the LAYER SOURCE section within choose a layer and upload the given zip file.
