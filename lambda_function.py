@@ -47,8 +47,7 @@ def get_model():
 
 
 def get_llm_response(model, 
-                     username, 
-                     user_id, 
+                     username,
                      context_prompt_0,
                      context_prompt_1,
                      core_prompt,
@@ -119,13 +118,14 @@ def lambda_handler(event, context):
     core_prompt = event.get("Core Prompt")
     context_prompt = event.get("Context Prompt")
     feedback_data = event.get('Feedback Data')
+    bucket_name = os.environ.get('YOUR_BUCKET_NAME') 
     context_prompt_0, context_prompt_1 = context_prompt.split("Context details:")[0], context_prompt.split("Context details:")[-1]
     final_json = dict()
     final_json["Overview"] = {}
     final_json["Responses"] = []
     # print(f"core_prompt:{core_prompt}")
     # print(f"context_prompt:{context_prompt}")
-    # print(f"feedback_data:{feedback_data}")
+    print(f"feedback_data:{feedback_data}")
     # print(f"context_prompt_0:{context_prompt_0}")
     # print(f"context_prompt_1:{context_prompt_1}")
     model = get_model()
@@ -138,15 +138,15 @@ def lambda_handler(event, context):
             # print(f"username : {username}")
         except:
             username = "None"
-        user_id = data.get("ID")
+        feedback_id = data.get("ID")
         review = data.get("Review")["Text"]
         # print(f"Review: {review}")
         survey_data = data.get("Surveys")[0]["Questions"]
         print(f"survey_data: {survey_data}")
         response_dict = {}
+        
         feedback = get_llm_response(model = model,
                                     username=username,
-                                    user_id = user_id, 
                                     context_prompt_0= context_prompt_0,
                                     context_prompt_1=context_prompt_1,
                                     review=review, 
@@ -154,6 +154,7 @@ def lambda_handler(event, context):
                                     survey_data = survey_data,
                                     output_parser = output_parser)
         response_dict = feedback.copy()
+        response_dict["feedback_id"] = feedback_id
         review_list.append(review)
         final_json["Responses"].append(response_dict)
 
@@ -180,7 +181,15 @@ def lambda_handler(event, context):
     }
     # print(f"MERGED DATA: {merged_data}")
     final_json["Overview"] = merged_data
+    final_json["session_id"] = secret_key
     print(final_json)
+    
+    file_key = f'Data/{secret_key}.json'
+    json_data = json.dumps(final_json)
+    # file_content = 'This is the content of the file.' 
+    s3 = boto3.client('s3') 
+    status_code = s3.put_object(Bucket=bucket_name, Key=file_key, Body=json_data)
+    print("STATUS CODE", status_code)
     return {
         'statusCode': 200,
         'body': final_json
