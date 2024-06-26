@@ -9,7 +9,10 @@ aws_secret_access_key = 'YOUR AWS_SECRET_ACCESS_KEY' \
 \
 region_name='YOUR REGION_NAME' \
 \
-BEDROCK_MODEL = "mistral.mistral-7b-instruct-v0:2"
+BEDROCK_MODEL = "mistral.mistral-7b-instruct-v0:2" \
+\
+YOUR_BUCKET_NAME = "YOUR S3 BUCKET NAME" \
+\
 
 
 # Local Testing
