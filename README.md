@@ -12,7 +12,6 @@ region_name='YOUR REGION_NAME' \
 BEDROCK_MODEL = "mistral.mistral-7b-instruct-v0:2" \
 \
 YOUR_BUCKET_NAME = "YOUR S3 BUCKET NAME" \
-\
 
 
 # Local Testing
