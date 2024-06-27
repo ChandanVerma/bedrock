@@ -133,8 +133,10 @@ def lambda_handler(event, context):
 
     reviews = [feedback["Review"]["Text"] for feedback in feedback_data]
     survey_questions = [survey["Questions"] for feedback in feedback_data for survey in feedback["Surveys"]]
-    user_name = [feedback["Customer"]["Name"] for feedback in feedback_data if feedback["Customer"].get("Name") is not None]
+    user_name = [feedback["Customer"]["Name"] if feedback["Customer"].get("Name") is not None else None for feedback in feedback_data]
     feedback_ids = [feedback["ID"] for feedback in feedback_data]
+    print("FEEDBACK ID:", feedback_ids)
+    print("USER NAME:", user_name)
     
     model = get_model()
     output_parser = JsonOutputParser(pydantic_object=ReviewsOutput)
