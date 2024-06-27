@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from langchain_aws import ChatBedrock
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder, PromptTemplate
 from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
+from langchain_core.runnables import RunnableSequence
 import time
 
 retry_config = Config(
@@ -75,14 +76,21 @@ def get_llm_response(model,
     
     chain = prompt | model | output_parser
     
-    return chain.invoke({"review": review, 
-                         "survey_data":survey_data,
-                         "input": f"""{context_prompt_1} 
-                                      {context_prompt_0}
-                                      Please adhere to the following policies:
-                                      {core_prompt} 
-                                      The username is {username} who provided the feedback."""
-    })
+    batch_input = [
+        {
+        "review": review,
+        "survey_data": survey,
+        "input": f"""{context_prompt_1} 
+                     {context_prompt_0}
+                     Please adhere to the following policies:
+                     {core_prompt} 
+                     The username is {username} who provided the feedback."""
+        }
+    for review, survey, username in zip(review, survey_data, username)
+    ]
+    
+    resp = chain.batch(batch_input)
+    return resp
     
 
 def get_consolidated_summary(model, review):
@@ -122,46 +130,32 @@ def lambda_handler(event, context):
     context_prompt_0, context_prompt_1 = context_prompt.split("Context details:")[0], context_prompt.split("Context details:")[-1]
     final_json = dict()
     final_json["Overview"] = {}
-    final_json["Responses"] = []
-    # print(f"core_prompt:{core_prompt}")
-    # print(f"context_prompt:{context_prompt}")
-    print(f"feedback_data:{feedback_data}")
-    # print(f"context_prompt_0:{context_prompt_0}")
-    # print(f"context_prompt_1:{context_prompt_1}")
+
+    reviews = [feedback["Review"]["Text"] for feedback in feedback_data]
+    survey_questions = [survey["Questions"] for feedback in feedback_data for survey in feedback["Surveys"]]
+    user_name = [feedback["Customer"]["Name"] for feedback in feedback_data if feedback["Customer"].get("Name") is not None]
+    feedback_ids = [feedback["ID"] for feedback in feedback_data]
+    
     model = get_model()
     output_parser = JsonOutputParser(pydantic_object=ReviewsOutput)
-    review_list = []
-    for idx, data in enumerate(feedback_data):
-        # print(data)
-        try:       
-            username = data.get("Customer")["Name"]
-            # print(f"username : {username}")
-        except:
-            username = "None"
-        feedback_id = data.get("ID")
-        review = data.get("Review")["Text"]
-        # print(f"Review: {review}")
-        survey_data = data.get("Surveys")[0]["Questions"]
-        print(f"survey_data: {survey_data}")
-        response_dict = {}
+    
+    feedback = get_llm_response(model = model,
+                                username=user_name,
+                                context_prompt_0 = context_prompt_0,
+                                context_prompt_1 = context_prompt_1,
+                                review=reviews, 
+                                core_prompt = core_prompt,
+                                survey_data = survey_questions,
+                                output_parser = output_parser)
+    
+    final_json["Responses"] = feedback
+    # Add feedback_id to each response
+    for response, feedback_id in zip(final_json["Responses"], feedback_ids):
+        response["feedback_id"] = feedback_id
         
-        feedback = get_llm_response(model = model,
-                                    username=username,
-                                    context_prompt_0= context_prompt_0,
-                                    context_prompt_1=context_prompt_1,
-                                    review=review, 
-                                    core_prompt=core_prompt,
-                                    survey_data = survey_data,
-                                    output_parser = output_parser)
-        response_dict = feedback.copy()
-        response_dict["feedback_id"] = feedback_id
-        review_list.append(review)
-        final_json["Responses"].append(response_dict)
-
+    review_list = [item["Response"] for item in feedback]
 
     summary = get_consolidated_summary(model = model, review=review_list)
-    print(f"CONSOLIDATED SUMMARY: {summary}")
-    
     unique_sentiment = list({response["Sentiment"] for response in final_json["Responses"]})
 
     # Check if there is only one unique sentiment
@@ -179,17 +173,17 @@ def lambda_handler(event, context):
         "Positive_Themes": positive_themes,
         "Negative_Themes": negative_themes
     }
-    # print(f"MERGED DATA: {merged_data}")
     final_json["Overview"] = merged_data
     final_json["session_id"] = secret_key
-    print(final_json)
     
-    file_key = f'Data/{secret_key}.json'
-    json_data = json.dumps(final_json)
-    # file_content = 'This is the content of the file.' 
-    s3 = boto3.client('s3') 
-    status_code = s3.put_object(Bucket=bucket_name, Key=file_key, Body=json_data)
-    print("STATUS CODE", status_code)
+    
+    ##### UNCOMMENT THIS SECTION IF YOU WANT TO UPLOAD RESULTS TO S3 #####
+    
+    # file_key = f'Data/{secret_key}.json'
+    # json_data = json.dumps(final_json)
+    # s3 = boto3.client('s3') 
+    # status_code = s3.put_object(Bucket=bucket_name, Key=file_key, Body=json_data)
+
     return {
         'statusCode': 200,
         'body': final_json
