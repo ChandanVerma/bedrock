@@ -1,9 +1,0 @@
-version = 0.1
-[default.deploy.parameters]
-stack_name = "streaming-feedback-app"
-resolve_s3 = true
-s3_prefix = "streaming-feedback-app"
-region = "ap-south-1"
-confirm_changeset = true
-capabilities = "CAPABILITY_IAM"
-image_repositories = ["FastAPIFunction=519183793155.dkr.ecr.ap-south-1.amazonaws.com/streamingfeedbackappdba1bf58/fastapifunctionead79d0drepo"]
