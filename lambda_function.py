@@ -28,13 +28,15 @@ boto3_bedrock_client = session.client(service_name='bedrock-runtime',
                                        
                                           
 class ReviewsOutput(BaseModel):
-        Response: str = Field(description="This will be the response that will be generate by you in reponse to the customer review.")
+        Default: str = Field(description="This will be the response that will be generate by you in reponse to the customer review.")
+        More_friendly: str = Field(description="This will be the response that will be generate by you in reponse to the customer review in a friendly way.")
+        More_Professional: str = Field(description="This will be the response that will be generate by you in reponse to the customer review in a more professional way.")
+        More_Concise: list = Field(description="This will be the response that will be generate by you in reponse to the customer review in a more concise way.")
         Summary: str = Field(description="This will be the summary of the converstion based on the review provided.")
         Sentiment: str = Field(description="promoter or non-promoter")
         Positive_Themes: list = Field(description="This will be a python list of positives out of the entire conversation. Return a blank python list if there are no positives.")
         Negative_Themes: list = Field(description="This will be a python list of negatives out of the entire conversation. Return a blank python list if there are no negatives.")
-    
-
+        
 def get_model():
     model = ChatBedrock(
         model_id = os.getenv("BEDROCK_MODEL"),
@@ -61,15 +63,18 @@ def get_llm_response(model,
                 Based on the Survey data provided generate a summary of the conversation, sentiment, positive_themes and negative themes
                 {survey_data}
                 format you response in a json format with the following keys:
-                Response: This will be the response that will be generate by you in reponse to the customer review.
-                Summary: This will be the summary of the converstion based on the {review} provided.
-                Sentiment: This will be based on the {survey_data} on the score column. promoter or non-promoter.
+                Default: This will be the response that will be generate by you in reponse to the customer review.
+                More_friendly: This will be the response that will be generate by you in reponse to the customer review in a friendly way.
+                More_Professional: This will be the response that will be generate by you in reponse to the customer review in a more professional way.
+                More_Concise: This will be the response that will be generate by you in reponse to the customer review in a more concise way.
+                Summary: Summerize the converstion based on the {review} provided.
+                Sentiment: can be either promotor or non-promoter  based on {survey_data}.
                 Positive_Themes: This will be a python list of positives out of the entire conversation. Return a blank python list if there are no positives.
                 Negative_Themes: This will be a python list of Negatives out of the entire conversation, Return a blank python list if there are no negatives.
                 Donot merge multiple keys responses in a single key.
                 
                 Recheck the response is strictly in a json format with the following keys and nothings else:
-                Response, Summary, Sentiment, Positive Themes, Negative Themes""",
+                Default, More_friendly, More_Professional, More_Concise, Summary, Sentiment, Positive Themes, Negative Themes""",
     input_variables=["review", "survey_data"],
     partial_variables={"format_instructions": output_parser.get_format_instructions()},
     )
@@ -116,8 +121,6 @@ def get_consolidated_summary(model, review):
                       Summarize all the reviews into a single one to capture the sentiments of the all users in a maximum of 2 sentences.""",
          },
     )
-    response_dict = {}
-    response_dict["Summary"] = response
     return response
 
 
@@ -136,7 +139,7 @@ def lambda_handler(event, context):
     user_name = [feedback["Customer"]["Name"] if feedback["Customer"].get("Name") is not None else None for feedback in feedback_data]
     feedback_ids = [feedback["ID"] for feedback in feedback_data]
     print("FEEDBACK ID:", feedback_ids)
-    print("USER NAME:", user_name)
+    # print("USER NAME:", user_name)
     
     model = get_model()
     output_parser = JsonOutputParser(pydantic_object=ReviewsOutput)
@@ -150,19 +153,29 @@ def lambda_handler(event, context):
                                 survey_data = survey_questions,
                                 output_parser = output_parser)
     
+    # print(f"FEEDBACK IS: {feedback}")
     final_json["Responses"] = feedback
     # Add feedback_id to each response
     for response, feedback_id in zip(final_json["Responses"], feedback_ids):
         response["feedback_id"] = feedback_id
         
-    review_list = [item["Response"] for item in feedback]
+    review_list = [item["Default"] for item in feedback]
+    # print(f"REVIEW LIST: {review_list}")
+    consolidated_summary = get_consolidated_summary(model = model, review=review_list)
+    # print(f"SUMMARY: {consolidated_summary}")
+    
+    # unique_sentiment = list({response["Sentiment"] for response in final_json["Responses"]})
+    # unique_sentiment = [item['Sentiment'] for item in feedback if item and 'Sentiment' in item]
+    sentiment_list = [item['Sentiment'] for item in feedback if item and 'Sentiment' in item]
 
-    summary = get_consolidated_summary(model = model, review=review_list)
-    unique_sentiment = list({response["Sentiment"] for response in final_json["Responses"]})
+    unique_sentiment = list(set(sentiment_list))
+    # print(f"UNIQUE SENTIMENT IS:", unique_sentiment)
+
 
     # Check if there is only one unique sentiment
     if len(unique_sentiment) != 1:
         print("Warning: Multiple different sentiments found")
+        # unique_sentiment = unique_sentiment[0]
 
     # Extract and merge themes using list comprehension and set operations
     positive_themes = list({theme for response in final_json["Responses"] for theme in response["Positive_Themes"]})
@@ -170,7 +183,7 @@ def lambda_handler(event, context):
 
     # Construct the final merged dictionary
     merged_data = {
-        "Summary": summary,
+        "Summary": consolidated_summary,
         "Sentiment": unique_sentiment[0] if unique_sentiment else None,
         "Positive_Themes": positive_themes,
         "Negative_Themes": negative_themes
@@ -181,10 +194,10 @@ def lambda_handler(event, context):
     
     ##### UNCOMMENT THIS SECTION IF YOU WANT TO UPLOAD RESULTS TO S3 #####
     
-    # file_key = f'Data/{secret_key}.json'
-    # json_data = json.dumps(final_json)
-    # s3 = boto3.client('s3') 
-    # status_code = s3.put_object(Bucket=bucket_name, Key=file_key, Body=json_data)
+    file_key = f'Data/{secret_key}.json'
+    json_data = json.dumps(final_json)
+    s3 = boto3.client('s3') 
+    status_code = s3.put_object(Bucket=bucket_name, Key=file_key, Body=json_data)
 
     return {
         'statusCode': 200,

@@ -56,6 +56,7 @@ def lambda_handler(event, context):
     feedback_id = event['feedback_id']
     session_id = event['session_id']
     modifications = event['modifications']
+    modification_key = event['modification_key']
     print(modifications)
     output_parser = StrOutputParser()
     model = get_model()
@@ -87,7 +88,7 @@ def lambda_handler(event, context):
         
         print("FEEDBACK RECORD:", feedback_record)
         # Prepare the data to send to the LLM
-        response_text = feedback_record.get('Response')
+        response_text = feedback_record.get(modification_key)
         
         print("ORIGINAL RESPONSE:", response_text)
         
@@ -99,7 +100,7 @@ def lambda_handler(event, context):
         
         print("MODIFIED RESPONSE:", modified_response)
         
-        feedback_record['Response'] = modified_response
+        feedback_record[modification_key] = modified_response
         
         # Upload the updated JSON file back to S3
         updated_file_content = json.dumps(json_data)
