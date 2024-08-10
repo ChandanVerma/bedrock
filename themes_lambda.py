@@ -43,7 +43,7 @@ def get_model():
 def get_llm_response(model, comment, output_parser):
     prompt = PromptTemplate(
     template="""
-                Given a list of classes, classify the document into one or more of these classes. Skip any preamble text and just give the class name.
+                Given a list of classes, classify the comment into one or more of these classes. Skip any preamble text and just give the class name.
 
                 <classes>[Issue Resolution and Follow-up, Helpfulness and Support, Issue Resolution and Repair Delays,
                 Email Communication and Responsiveness, Pricing and Value for Money, Customer Service and Responsiveness Concerns,
